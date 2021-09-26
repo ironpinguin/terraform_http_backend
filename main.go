@@ -52,7 +52,9 @@ func purge_tfstate(w http.ResponseWriter, r *http.Request) {
 	if err := storage_backend.pruge(tf_id); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(http.StatusText(http.StatusInternalServerError)))
+		return
 	}
+	w.Write([]byte("{\"state\": \"tfstate deleted\"}"))
 }
 
 func lock_tfstate(w http.ResponseWriter, r *http.Request) {
@@ -98,6 +100,11 @@ func hello(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleRequests() {
+	pwd, _ := os.Getwd()
+	storage_path := pwd + string(os.PathSeparator) + "store" + string(os.PathSeparator)
+	log.Debugf("current storage path: %s", storage_path)
+	storage_backend = Backend{dir: storage_path}
+
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	chi.RegisterMethod("LOCK")
@@ -114,8 +121,5 @@ func handleRequests() {
 }
 
 func main() {
-	pwd, _ := os.Getwd()
-	storage_backend = Backend{pwd + string(os.PathSeparator) + "store" + string(os.PathSeparator)}
-	log.Warn(pwd + string(os.PathSeparator) + "store")
 	handleRequests()
 }
