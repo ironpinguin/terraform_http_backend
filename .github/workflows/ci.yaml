@@ -70,7 +70,7 @@ jobs:
         with:
           auth: ${{ secrets.GIST_SECRET }}
           gistID: 97d98d096e648370e2848116f7f8289a
-          filename: ulid_uuid__${{ env.BRANCH }}.json
+          filename: terraform_http_backend__${{ env.BRANCH }}.json
           label: coverage
           message: ${{ env.COVERAGE }}
           color: ${{ env.COLOR }}
