@@ -1,0 +1,76 @@
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+name: CI/CD
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17.x
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Run linters
+        uses: golangci/golangci-lint-action@v2
+      - name: static code analyse
+        run: go vet ./...
+  test:
+    needs: lint
+    strategy:
+      matrix:
+        go-version: [1.17.x]
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Install Go
+        if: success()
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Run tests
+        run: go test -v -covermode=count ./...
+  coverage:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Go
+        if: success()
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17.x
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Calc coverage
+        run: |
+          COVERAGE=$(go test -v -covermode=count -coverprofile=coverage.out ./... | grep "^coverage:" | cut -d' ' -f2)
+          echo "COVERAGE=$(echo ${COVERAGE})" >> $GITHUB_ENV
+          if [ "x${{ github.head_ref }}" == "x" ]; then
+            BRANCH_NAME=$(echo ${{github.ref}} | cut -d'/' -f3)
+          else
+            BRANCH_NAME=${{github.head_ref}}
+          fi
+          echo "BRANCH=$(echo ${BRANCH_NAME})" >> $GITHUB_ENV
+          COLOR=orange
+          COVERAGE_NUMBER=$(echo ${COVERAGE} | cut -d'%' -f1)
+          if [ 1 -eq "$(echo "${COVERAGE_NUMBER} < 60"| bc)" ]; then
+            color=red
+          elif [ 1 -eq "$(echo "${COVERAGE_NUMBER} > 85"| bc)" ]; then
+            color=green
+          fi
+          echo "COLOR=$(echo ${color})" >> $GITHUB_ENV
+      - name: Create the Badge
+        uses: schneegans/dynamic-badges-action@v1.0.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: 97d98d096e648370e2848116f7f8289a
+          filename: terraform_http_backend__${{ env.BRANCH }}.json
+          label: coverage
+          message: ${{ env.COVERAGE }}
+          color: ${{ env.COLOR }}
