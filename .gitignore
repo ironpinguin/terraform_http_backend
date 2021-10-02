@@ -15,3 +15,6 @@
 # vendor/
 store/
 !store/.gitkeep
+
+# Ideas
+.idea/
