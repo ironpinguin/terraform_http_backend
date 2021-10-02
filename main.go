@@ -13,97 +13,93 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-var storage_backend Backend
+var storageBackend Backend
 
-func get_tfstate(w http.ResponseWriter, r *http.Request) {
+func getTfstate(w http.ResponseWriter, r *http.Request) {
 	var body []byte
 	var err error
 	var e *fs.PathError
 
-	tf_id := chi.URLParam(r, "id")
-	if body, err = storage_backend.get(tf_id); err != nil {
+	tfID := chi.URLParam(r, "id")
+	if body, err = storageBackend.get(tfID); err != nil {
 		if errors.As(err, &e) {
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte(http.StatusText(http.StatusNotFound)))
+			_, _ = w.Write([]byte(http.StatusText(http.StatusNotFound)))
 			return
 		}
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(http.StatusText(http.StatusInternalServerError)))
+		_, _ = w.Write([]byte(http.StatusText(http.StatusInternalServerError)))
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	w.Write(body)
+	_, _ = w.Write(body)
 }
 
-func update_tfstate(w http.ResponseWriter, r *http.Request) {
-	tf_id := chi.URLParam(r, "id")
+func updateTfstate(w http.ResponseWriter, r *http.Request) {
+	tfID := chi.URLParam(r, "id")
 	reqBody, _ := ioutil.ReadAll(r.Body)
-	if err := storage_backend.update(tf_id, reqBody); err != nil {
+	if err := storageBackend.update(tfID, reqBody); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(http.StatusText(http.StatusInternalServerError)))
+		_, _ = w.Write([]byte(http.StatusText(http.StatusInternalServerError)))
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	w.Write(reqBody)
+	_, _ = w.Write(reqBody)
 }
 
-func purge_tfstate(w http.ResponseWriter, r *http.Request) {
-	tf_id := chi.URLParam(r, "id")
-	if err := storage_backend.pruge(tf_id); err != nil {
+func purgeTfstate(w http.ResponseWriter, r *http.Request) {
+	tfID := chi.URLParam(r, "id")
+	if err := storageBackend.pruge(tfID); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(http.StatusText(http.StatusInternalServerError)))
+		_, _ = w.Write([]byte(http.StatusText(http.StatusInternalServerError)))
 		return
 	}
-	w.Write([]byte("{\"state\": \"tfstate deleted\"}"))
+	_, _ = w.Write([]byte("{\"state\": \"tfstate deleted\"}"))
 }
 
-func lock_tfstate(w http.ResponseWriter, r *http.Request) {
-	var lock_file []byte
+func lockTfstate(w http.ResponseWriter, r *http.Request) {
+	var lockFile []byte
 	var err error
 	var conflict *ConflictError
 
-	tf_id := chi.URLParam(r, "id")
+	tfID := chi.URLParam(r, "id")
 	reqBody, _ := ioutil.ReadAll(r.Body)
-	if lock_file, err = storage_backend.lock(tf_id, reqBody); err != nil {
+	if lockFile, err = storageBackend.lock(tfID, reqBody); err != nil {
 		if errors.As(err, &conflict) {
 			w.WriteHeader(http.StatusConflict)
-			w.Write([]byte(http.StatusText(http.StatusConflict)))
+			_, _ = w.Write([]byte(http.StatusText(http.StatusConflict)))
 			return
 		}
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(http.StatusText(http.StatusInternalServerError)))
+		_, _ = w.Write([]byte(http.StatusText(http.StatusInternalServerError)))
 		return
 	}
-	w.Write(lock_file)
+	_, _ = w.Write(lockFile)
 }
 
-func unlock_tfstate(w http.ResponseWriter, r *http.Request) {
+func unlockTfstate(w http.ResponseWriter, r *http.Request) {
 	var conflict *ConflictError
 
-	tf_id := chi.URLParam(r, "id")
+	tfID := chi.URLParam(r, "id")
 	reqBody, _ := ioutil.ReadAll(r.Body)
-	if err := storage_backend.unlock(tf_id, reqBody); err != nil {
+	if err := storageBackend.unlock(tfID, reqBody); err != nil {
 		if errors.As(err, &conflict) {
 			w.WriteHeader(http.StatusConflict)
-			w.Write([]byte(http.StatusText(http.StatusConflict)))
+			_, _ = w.Write([]byte(http.StatusText(http.StatusConflict)))
 			return
 		}
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(http.StatusText(http.StatusInternalServerError)))
+		_, _ = w.Write([]byte(http.StatusText(http.StatusInternalServerError)))
 		return
 	}
-	w.Write(reqBody)
-}
-
-func hello(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("{\"dfasjk\": \"djskalf\"}"))
+	_, _ = w.Write(reqBody)
 }
 
 func handleRequests() {
 	pwd, _ := os.Getwd()
-	storage_path := pwd + string(os.PathSeparator) + "store" + string(os.PathSeparator)
-	log.Debugf("current storage path: %s", storage_path)
-	storage_backend = Backend{dir: storage_path}
+	storagePath := pwd + string(os.PathSeparator) + "store" + string(os.PathSeparator)
+	log.Debugf("current storage path: %s", storagePath)
+	storageBackend = Backend{dir: storagePath}
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -111,12 +107,11 @@ func handleRequests() {
 	chi.RegisterMethod("UNLOCK")
 	r.Use(middleware.SetHeader("Content-Type", "application/json"))
 
-	r.Get("/", hello)
-	r.Get("/{id}", get_tfstate)
-	r.Post("/{id}", update_tfstate)
-	r.Delete("/{id}", purge_tfstate)
-	r.MethodFunc("LOCK", "/{id}", lock_tfstate)
-	r.MethodFunc("UNLOCK", "/{id}", unlock_tfstate)
+	r.Get("/{id}", getTfstate)
+	r.Post("/{id}", updateTfstate)
+	r.Delete("/{id}", purgeTfstate)
+	r.MethodFunc("LOCK", "/{id}", lockTfstate)
+	r.MethodFunc("UNLOCK", "/{id}", unlockTfstate)
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
 
