@@ -80,7 +80,7 @@ func (b *Backend) update(tfID string, tfstate []byte) error {
 	return nil
 }
 
-func (b *Backend) pruge(tfID string) error {
+func (b *Backend) purge(tfID string) error {
 	var tfstateFilename = b.getTfstateFilename(tfID)
 
 	if _, err := os.Stat(tfstateFilename); os.IsNotExist(err) {
@@ -106,15 +106,11 @@ func (b *Backend) lock(tfID string, lock []byte) ([]byte, error) {
 		return nil, err
 	}
 	if _, err := os.Stat(lockFilename); os.IsNotExist(err) {
-		if lockFile, err = json.MarshalIndent(lockInfo, "", " "); err != nil {
-			log.Errorf("unexpected encoding json error %v", err)
-			return nil, err
-		}
-		if err = ioutil.WriteFile(lockFilename, lockFile, 0644); err != nil {
+		if err = ioutil.WriteFile(lockFilename, lock, 0644); err != nil {
 			log.Errorf("Can't write lock file %s. Got follow error %v", lockFilename, err)
 			return nil, err
 		}
-		return lockFile, nil
+		return lock, nil
 	}
 
 	if lockFile, err = ioutil.ReadFile(lockFilename); err != nil {

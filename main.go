@@ -49,7 +49,7 @@ func updateTfstate(w http.ResponseWriter, r *http.Request) {
 
 func purgeTfstate(w http.ResponseWriter, r *http.Request) {
 	tfID := chi.URLParam(r, "id")
-	if err := storageBackend.pruge(tfID); err != nil {
+	if err := storageBackend.purge(tfID); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte(http.StatusText(http.StatusInternalServerError)))
 		return
