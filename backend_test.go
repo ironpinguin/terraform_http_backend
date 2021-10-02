@@ -9,18 +9,6 @@ import (
 	"time"
 )
 
-func createDirectory() (string, func()) {
-	tempdir, _ := os.MkdirTemp(os.TempDir(), "testrun*")
-	directory := tempdir + string(os.PathSeparator)
-
-	return directory, func() {
-		_ = os.RemoveAll(tempdir)
-	}
-}
-func createFile(directory string, filename string, content string) {
-	_ = os.WriteFile(directory+filename, []byte(content), 0644)
-}
-
 func TestBackend_get(t *testing.T) {
 	tmpTestDir, cleanup := createDirectory()
 
