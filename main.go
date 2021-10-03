@@ -5,7 +5,6 @@ import (
 	"io/fs"
 	"io/ioutil"
 	"net/http"
-	"os"
 
 	log "github.com/sirupsen/logrus"
 
@@ -14,6 +13,7 @@ import (
 )
 
 var storageBackend Backend
+var config Config
 
 func getTfstate(w http.ResponseWriter, r *http.Request) {
 	var body []byte
@@ -96,13 +96,16 @@ func unlockTfstate(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleRequests() {
-	pwd, _ := os.Getwd()
-	storagePath := pwd + string(os.PathSeparator) + "store" + string(os.PathSeparator)
-	log.Debugf("current storage path: %s", storagePath)
-	storageBackend = Backend{dir: storagePath}
+	log.Debugf("current storage path: %s", config.storageDirectory)
+	storageBackend = Backend{dir: config.storageDirectory}
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
+
+	if config.authEnabled {
+		r.Use(middleware.BasicAuth("restricted access", config.getAuthMap()))
+	}
+
 	chi.RegisterMethod("LOCK")
 	chi.RegisterMethod("UNLOCK")
 	r.Use(middleware.SetHeader("Content-Type", "application/json"))
@@ -116,5 +119,6 @@ func handleRequests() {
 }
 
 func main() {
+	config.loadConfig(".env")
 	handleRequests()
 }
