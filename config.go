@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/viper"
 )
 
+// Config used to load configuration
 type Config struct {
 	storageDirectory string
 	authEnabled      bool
