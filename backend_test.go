@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
@@ -86,8 +87,8 @@ func TestBackend_getTfstateFilename(t *testing.T) {
 		args   args
 		want   string
 	}{
-		{"get file name without extension", fields{"/tmp/"}, args{"the_file"}, "/tmp/the_file.tfstate"},
-		{"get file name with extension", fields{"/tmp/"}, args{"otherfile.tfstate"}, "/tmp/otherfile.tfstate"},
+		{"get file name without extension", fields{"/tmp/"}, args{"the_file"}, filepath.Join("/tmp/", "the_file.tfstate")},
+		{"get file name with extension", fields{"/tmp/"}, args{"otherfile.tfstate"}, filepath.Join("/tmp/", "otherfile.tfstate")},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
