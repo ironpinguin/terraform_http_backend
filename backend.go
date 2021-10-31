@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"path/filepath"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -48,9 +49,9 @@ type Backend struct {
 
 func (b *Backend) getTfstateFilename(tfID string) string {
 	if strings.HasSuffix(tfID, ".tfstate") {
-		return b.dir + tfID
+		return filepath.Join(b.dir, tfID)
 	}
-	return b.dir + tfID + ".tfstate"
+	return filepath.Join(b.dir, tfID + ".tfstate")
 }
 
 func (b *Backend) get(tfID string) ([]byte, error) {
