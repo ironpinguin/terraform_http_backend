@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/spf13/viper"
 )
 
@@ -10,6 +12,8 @@ type Config struct {
 	authEnabled      bool
 	username         string
 	password         string
+	port             int
+	ip               string
 }
 
 func (c *Config) loadConfig(envfile string) {
@@ -21,6 +25,8 @@ func (c *Config) loadConfig(envfile string) {
 	viper.SetDefault("tf_auth_enabled", false)
 	viper.SetDefault("tf_username", "")
 	viper.SetDefault("tf_password", "")
+	viper.SetDefault("tf_port", 8080)
+	viper.SetDefault("tf_ip", "")
 
 	if err := viper.ReadInConfig(); err != nil {
 		logger.Infof("Error while reading config file %s", err)
@@ -35,6 +41,8 @@ func (c *Config) loadConfig(envfile string) {
 	c.authEnabled = viper.GetBool("tf_auth_enabled")
 	c.username = viper.GetString("tf_username")
 	c.password = viper.GetString("tf_password")
+	c.port = viper.GetInt("tf_port")
+	c.ip = viper.GetString("tf_ip")
 }
 
 func (c *Config) getAuthMap() map[string]string {
@@ -43,4 +51,8 @@ func (c *Config) getAuthMap() map[string]string {
 	authData[c.username] = c.password
 
 	return authData
+}
+
+func (c *Config) getAddr() string {
+	return fmt.Sprintf("%s:%d", c.ip, c.port)
 }
