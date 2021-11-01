@@ -7,14 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestBackend_get(t *testing.T) {
 	tmpTestDir, cleanup := createDirectory()
-	testLogger, hooks := test.NewNullLogger()
-	SetLogger(testLogger)
 
 	defer cleanup()
 
@@ -74,7 +71,7 @@ func TestBackend_get(t *testing.T) {
 				assert.Error(t, err)
 				return
 			}
-			checkLogMessage(t, tt.wantLogs, hooks)
+			checkLogMessage(t, tt.wantLogs)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -110,8 +107,6 @@ func TestBackend_getTfstateFilename(t *testing.T) {
 
 func TestBackend_lock(t *testing.T) {
 	tmpTestDir, cleanup := createDirectory()
-	testLogger, hooks := test.NewNullLogger()
-	SetLogger(testLogger)
 	var lockInfo1, lockInfo2 LockInfo
 	lockInfo1 = LockInfo{"myid1", "START", "ThisInfo", "", "", time.Now(), ""}
 	lockInfo1Bytes, _ := json.Marshal(lockInfo1)
@@ -170,15 +165,13 @@ func TestBackend_lock(t *testing.T) {
 				return
 			}
 			assert.Equal(t, tt.want, got)
-			checkLogMessage(t, tt.wantLogs, hooks)
+			checkLogMessage(t, tt.wantLogs)
 		})
 	}
 }
 
 func TestBackend_purge(t *testing.T) {
 	tmpTestDir, cleanup := createDirectory()
-	testLogger, hooks := test.NewNullLogger()
-	SetLogger(testLogger)
 	defer cleanup()
 
 	case1TfStateFile := "existing.tfstate"
@@ -207,7 +200,7 @@ func TestBackend_purge(t *testing.T) {
 			if err := b.purge(tt.args.tfID); err != nil {
 				assert.Error(t, err)
 			}
-			checkLogMessage(t, tt.wantLogs, hooks)
+			checkLogMessage(t, tt.wantLogs)
 		})
 	}
 }
@@ -215,8 +208,6 @@ func TestBackend_purge(t *testing.T) {
 func TestBackend_unlock(t *testing.T) {
 	var lockInfo1, lockInfo2 LockInfo
 	tmpTestDir, cleanup := createDirectory()
-	testLogger, hooks := test.NewNullLogger()
-	SetLogger(testLogger)
 	defer cleanup()
 
 	lockInfo1 = LockInfo{"myid1", "START", "ThisInfo", "", "", time.Now(), ""}
@@ -256,7 +247,7 @@ func TestBackend_unlock(t *testing.T) {
 			} else {
 				assert.Nil(t, err)
 			}
-			checkLogMessage(t, tt.wantLogs, hooks)
+			checkLogMessage(t, tt.wantLogs)
 		})
 	}
 }

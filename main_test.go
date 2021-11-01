@@ -8,14 +8,22 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 )
 
+var hooks *test.Hook
+var testLogger *logrus.Logger
+
+func init() {
+	testLogger, hooks = test.NewNullLogger()
+	SetLogger(testLogger)
+	config.loadConfig(".env.test")
+}
+
 func Test_getTfstate(t *testing.T) {
 	tmpTestDir, cleanup := createDirectory()
-	testLogger, hooks := test.NewNullLogger()
-	SetLogger(testLogger)
 	defer cleanup()
 
 	createFile(tmpTestDir, "state_file1.tfstate", "This is the content")
@@ -45,15 +53,13 @@ func Test_getTfstate(t *testing.T) {
 
 			assert.Equal(t, tt.wantStatus, rr.StatusCode)
 			assert.Equal(t, tt.wantBody, got)
-			checkLogMessage(t, tt.wantLogs, hooks)
+			checkLogMessage(t, tt.wantLogs)
 		})
 	}
 }
 
 func Test_lockTfstate(t *testing.T) {
 	tmpTestDir, cleanup := createDirectory()
-	testLogger, hooks := test.NewNullLogger()
-	SetLogger(testLogger)
 	defer cleanup()
 
 	var lockInfo1, lockInfo2 LockInfo
@@ -90,15 +96,13 @@ func Test_lockTfstate(t *testing.T) {
 			rr, got := testRequest(t, ts, "LOCK", "/"+tt.args.suburl, strings.NewReader(tt.args.body))
 			assert.Equal(t, tt.wantStatus, rr.StatusCode)
 			assert.Equal(t, tt.wantBody, got)
-			checkLogMessage(t, tt.wantLogs, hooks)
+			checkLogMessage(t, tt.wantLogs)
 		})
 	}
 }
 
 func Test_purgeTfstate(t *testing.T) {
 	tmpTestDir, cleanup := createDirectory()
-	testLogger, hooks := test.NewNullLogger()
-	SetLogger(testLogger)
 	defer cleanup()
 
 	createFile(tmpTestDir, "existing_state.tfstate", "This is the Content")
@@ -139,15 +143,13 @@ func Test_purgeTfstate(t *testing.T) {
 			rr, got := testRequest(t, ts, "DELETE", "/"+tt.args.suburl, nil)
 			assert.Equal(t, tt.wantStatus, rr.StatusCode)
 			assert.Equal(t, tt.wantBody, got)
-			checkLogMessage(t, tt.wantLogs, hooks)
+			checkLogMessage(t, tt.wantLogs)
 		})
 	}
 }
 
 func Test_unlockTfstate(t *testing.T) {
 	tmpTestDir, cleanup := createDirectory()
-	testLogger, hooks := test.NewNullLogger()
-	SetLogger(testLogger)
 
 	defer cleanup()
 
@@ -210,7 +212,7 @@ func Test_unlockTfstate(t *testing.T) {
 			rr, got := testRequest(t, ts, "UNLOCK", "/"+tt.args.suburl, strings.NewReader(tt.args.body))
 			assert.Equal(t, tt.wantStatus, rr.StatusCode)
 			assert.Equal(t, tt.wantBody, got)
-			checkLogMessage(t, tt.wantLogs, hooks)
+			checkLogMessage(t, tt.wantLogs)
 		})
 	}
 }

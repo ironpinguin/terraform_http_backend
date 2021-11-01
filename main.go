@@ -127,9 +127,9 @@ func handleRequests() {
 
 func init() {
 	SetLogger(logrus.New())
-	config.loadConfig(".env")
 }
 
 func main() {
+	config.loadConfig(".env")
 	handleRequests()
 }
