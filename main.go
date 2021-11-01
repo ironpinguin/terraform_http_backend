@@ -23,7 +23,7 @@ func getTfstate(w http.ResponseWriter, r *http.Request) {
 	if body, err = storageBackend.get(tfID); err != nil {
 		if errors.As(err, &e) {
 			var operation = err.(*fs.PathError).Op
-			if operation == "stat" {
+			if operation == "stat" || operation == "CreateFile" {
 				w.WriteHeader(http.StatusNotFound)
 				_, _ = w.Write([]byte(http.StatusText(http.StatusNotFound)))
 			} else {
