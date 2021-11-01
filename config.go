@@ -23,10 +23,10 @@ func (c *Config) loadConfig(envfile string) {
 
 	viper.SetDefault("tf_storage_dir", "./store")
 	viper.SetDefault("tf_auth_enabled", false)
-	viper.SetDefault("tf_username", "")
-	viper.SetDefault("tf_password", "")
+	viper.SetDefault("tf_username", "admin")
+	viper.SetDefault("tf_password", "admin")
 	viper.SetDefault("tf_port", 8080)
-	viper.SetDefault("tf_ip", "")
+	viper.SetDefault("tf_ip", "127.0.0.1")
 
 	if err := viper.ReadInConfig(); err != nil {
 		logger.Infof("Error while reading config file %s", err)
