@@ -6,11 +6,9 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
-	"path/filepath"
-
-	log "github.com/sirupsen/logrus"
 )
 
 // ConflictError if there is a locking conflict
@@ -51,7 +49,7 @@ func (b *Backend) getTfstateFilename(tfID string) string {
 	if strings.HasSuffix(tfID, ".tfstate") {
 		return filepath.Join(b.dir, tfID)
 	}
-	return filepath.Join(b.dir, tfID + ".tfstate")
+	return filepath.Join(b.dir, tfID+".tfstate")
 }
 
 func (b *Backend) get(tfID string) ([]byte, error) {
@@ -60,11 +58,11 @@ func (b *Backend) get(tfID string) ([]byte, error) {
 	var err error
 
 	if _, err := os.Stat(tfstateFilename); os.IsNotExist(err) {
-		log.Infof("File %s not found", tfstateFilename)
+		logger.Infof("File %s not found", tfstateFilename)
 		return nil, err
 	}
 	if tfstate, err = ioutil.ReadFile(tfstateFilename); err != nil {
-		log.Warnf("Can't read file %s. With follow error %v", tfstateFilename, err)
+		logger.Warnf("Can't read file %s. With follow error %v", tfstateFilename, err)
 		return nil, err
 	}
 
@@ -75,13 +73,14 @@ func (b *Backend) update(tfID string, tfstate []byte) error {
 	var tfstateFilename = b.getTfstateFilename(tfID)
 
 	if err := ioutil.WriteFile(tfstateFilename, tfstate, 0644); err != nil {
-		log.Warnf("Can't write file %s. Got follow error %v", tfstateFilename, err)
+		logger.Warnf("Can't write file %s. Got follow error %v", tfstateFilename, err)
 		return err
 	}
 	return nil
 }
 
 func (b *Backend) purge(tfID string) error {
+	var log = GetLogger()
 	var tfstateFilename = b.getTfstateFilename(tfID)
 
 	if _, err := os.Stat(tfstateFilename); os.IsNotExist(err) {
@@ -103,27 +102,27 @@ func (b *Backend) lock(tfID string, lock []byte) ([]byte, error) {
 	var err error
 
 	if err := json.Unmarshal(lock, &lockInfo); err != nil {
-		log.Errorf("unexpected decoding json error %v", err)
+		logger.Errorf("unexpected decoding json error %v", err)
 		return nil, err
 	}
 	if _, err := os.Stat(lockFilename); os.IsNotExist(err) {
 		if err = ioutil.WriteFile(lockFilename, lock, 0644); err != nil {
-			log.Errorf("Can't write lock file %s. Got follow error %v", lockFilename, err)
+			logger.Errorf("Can't write lock file %s. Got follow error %v", lockFilename, err)
 			return nil, err
 		}
 		return lock, nil
 	}
 
 	if lockFile, err = ioutil.ReadFile(lockFilename); err != nil {
-		log.Errorf("Can't read file %s. With follow error %v", lockFilename, err)
+		logger.Errorf("Can't read file %s. With follow error %v", lockFilename, err)
 		return nil, err
 	}
 	if err := json.Unmarshal(lockFile, &currentLockInfo); err != nil {
-		log.Errorf("unexpected decoding json error %v", err)
+		logger.Errorf("unexpected decoding json error %v", err)
 		return nil, err
 	}
 	if currentLockInfo.ID != lockInfo.ID {
-		log.Infof("state is locked with diffrend id %s, but follow id requestd lock %s", currentLockInfo.ID, lockInfo.ID)
+		logger.Infof("state is locked with diffrend id %s, but follow id requestd lock %s", currentLockInfo.ID, lockInfo.ID)
 		return nil, &ConflictError{
 			StatusCode: http.StatusConflict,
 		}
@@ -138,29 +137,29 @@ func (b *Backend) unlock(tfID string, lock []byte) error {
 	var lockInfo, currentLockInfo LockInfo
 
 	if err := json.Unmarshal(lock, &lockInfo); err != nil {
-		log.Errorf("unexpected decoding json error %v", err)
+		logger.Errorf("unexpected decoding json error %v", err)
 		return err
 	}
 	if _, err := os.Stat(lockFilename); os.IsNotExist(err) {
-		log.Infof("lock file %s is deleted so notting to do.", lockFilename)
+		logger.Infof("lock file %s is deleted so notting to do.", lockFilename)
 		return nil
 	}
 	if lockFile, err = ioutil.ReadFile(lockFilename); err != nil {
-		log.Errorf("Can't read file %s. With follow error %v", lockFilename, err)
+		logger.Errorf("Can't read file %s. With follow error %v", lockFilename, err)
 		return err
 	}
 	if err := json.Unmarshal(lockFile, &currentLockInfo); err != nil {
-		log.Errorf("unexpected decoding json error %v", err)
+		logger.Errorf("unexpected decoding json error %v", err)
 		return err
 	}
 	if currentLockInfo.ID != lockInfo.ID {
-		log.Infof("state is locked with diffrend id %s, but follow id requestd lock %s", currentLockInfo.ID, lockInfo.ID)
+		logger.Infof("state is locked with diffrend id %s, but follow id requestd lock %s", currentLockInfo.ID, lockInfo.ID)
 		return &ConflictError{
 			StatusCode: http.StatusConflict,
 		}
 	}
 	if err := os.Remove(lockFilename); err != nil {
-		log.Warnf("Can't delete file %s. Got follow error %v", lockFilename, err)
+		logger.Warnf("Can't delete file %s. Got follow error %v", lockFilename, err)
 		return err
 	}
 

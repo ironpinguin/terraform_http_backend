@@ -1,17 +1,20 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
 	"time"
+
+	"github.com/sirupsen/logrus/hooks/test"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestBackend_get(t *testing.T) {
 	tmpTestDir, cleanup := createDirectory()
+	testLogger, hooks := test.NewNullLogger()
+	SetLogger(testLogger)
 
 	defer cleanup()
 
@@ -29,11 +32,12 @@ func TestBackend_get(t *testing.T) {
 		tfID string
 	}
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    []byte
-		wantErr bool
+		name     string
+		fields   fields
+		args     args
+		want     []byte
+		wantErr  bool
+		wantLogs []string
 	}{
 		{
 			"success get file content",
@@ -41,6 +45,7 @@ func TestBackend_get(t *testing.T) {
 			args{case1Filename},
 			[]byte(case1Content),
 			false,
+			nil,
 		},
 		{
 			"success get file content with given .tfstate extension",
@@ -48,6 +53,7 @@ func TestBackend_get(t *testing.T) {
 			args{case2Filename},
 			[]byte(case2Content),
 			false,
+			nil,
 		},
 		{
 			"try to get not existing file",
@@ -55,6 +61,7 @@ func TestBackend_get(t *testing.T) {
 			args{"this_file_not_exists"},
 			nil,
 			true,
+			[]string{"this_file_not_exists.tfstate not found"},
 		},
 	}
 	for _, tt := range tests {
@@ -63,13 +70,12 @@ func TestBackend_get(t *testing.T) {
 				dir: tt.fields.dir,
 			}
 			got, err := b.get(tt.args.tfID)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("get() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr {
+				assert.Error(t, err)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("get() got = %v, want %v", got, tt.want)
-			}
+			checkLogMessage(t, tt.wantLogs, hooks)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -95,15 +101,17 @@ func TestBackend_getTfstateFilename(t *testing.T) {
 			b := &Backend{
 				dir: tt.fields.dir,
 			}
-			if got := b.getTfstateFilename(tt.args.tfID); got != tt.want {
-				t.Errorf("getTfstateFilename() = %v, want %v", got, tt.want)
-			}
+			got := b.getTfstateFilename(tt.args.tfID)
+
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
 
 func TestBackend_lock(t *testing.T) {
 	tmpTestDir, cleanup := createDirectory()
+	testLogger, hooks := test.NewNullLogger()
+	SetLogger(testLogger)
 	var lockInfo1, lockInfo2 LockInfo
 	lockInfo1 = LockInfo{"myid1", "START", "ThisInfo", "", "", time.Now(), ""}
 	lockInfo1Bytes, _ := json.Marshal(lockInfo1)
@@ -119,11 +127,12 @@ func TestBackend_lock(t *testing.T) {
 		lock []byte
 	}
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    []byte
-		wantErr bool
+		name     string
+		fields   fields
+		args     args
+		want     []byte
+		wantErr  bool
+		wantLogs []string
 	}{
 		{
 			"set lock",
@@ -131,6 +140,7 @@ func TestBackend_lock(t *testing.T) {
 			args{"this_state", lockInfo1Bytes},
 			lockInfo1Bytes,
 			false,
+			nil,
 		},
 		{
 			"update lock",
@@ -138,6 +148,7 @@ func TestBackend_lock(t *testing.T) {
 			args{"this_state", lockInfo1Bytes},
 			lockInfo1Bytes,
 			false,
+			nil,
 		},
 		{
 			"trigger conflict",
@@ -145,6 +156,7 @@ func TestBackend_lock(t *testing.T) {
 			args{"this_state", lockInfo2Bytes},
 			nil,
 			true,
+			[]string{"state is locked with diffrend id myid1, but follow id requestd lock myid2"},
 		},
 	}
 	for _, tt := range tests {
@@ -153,19 +165,20 @@ func TestBackend_lock(t *testing.T) {
 				dir: tt.fields.dir,
 			}
 			got, err := b.lock(tt.args.tfID, tt.args.lock)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("lock() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr {
+				assert.Error(t, err)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("lock() got = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, got)
+			checkLogMessage(t, tt.wantLogs, hooks)
 		})
 	}
 }
 
 func TestBackend_purge(t *testing.T) {
 	tmpTestDir, cleanup := createDirectory()
+	testLogger, hooks := test.NewNullLogger()
+	SetLogger(testLogger)
 	defer cleanup()
 
 	case1TfStateFile := "existing.tfstate"
@@ -177,22 +190,24 @@ func TestBackend_purge(t *testing.T) {
 		tfID string
 	}
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
+		name     string
+		fields   fields
+		args     args
+		wantErr  bool
+		wantLogs []string
 	}{
-		{"purge state", fields{tmpTestDir}, args{case1TfStateFile}, false},
-		{"ignore purge for not existing file", fields{tmpTestDir}, args{"not_existing_file"}, false},
+		{"purge state", fields{tmpTestDir}, args{case1TfStateFile}, false, nil},
+		{"ignore purge for not existing file", fields{tmpTestDir}, args{"not_existing_file"}, false, []string{"not_existing_file.tfstate not found"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			b := &Backend{
 				dir: tt.fields.dir,
 			}
-			if err := b.purge(tt.args.tfID); (err != nil) != tt.wantErr {
-				t.Errorf("pruge() error = %v, wantErr %v", err, tt.wantErr)
+			if err := b.purge(tt.args.tfID); err != nil {
+				assert.Error(t, err)
 			}
+			checkLogMessage(t, tt.wantLogs, hooks)
 		})
 	}
 }
@@ -200,6 +215,8 @@ func TestBackend_purge(t *testing.T) {
 func TestBackend_unlock(t *testing.T) {
 	var lockInfo1, lockInfo2 LockInfo
 	tmpTestDir, cleanup := createDirectory()
+	testLogger, hooks := test.NewNullLogger()
+	SetLogger(testLogger)
 	defer cleanup()
 
 	lockInfo1 = LockInfo{"myid1", "START", "ThisInfo", "", "", time.Now(), ""}
@@ -218,23 +235,28 @@ func TestBackend_unlock(t *testing.T) {
 		lock []byte
 	}
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
+		name     string
+		fields   fields
+		args     args
+		wantErr  bool
+		wantLogs []string
 	}{
-		{"case1", fields{tmpTestDir}, args{"unlock_no_exists", lockInfo1Bytes}, false},
-		{"case2", fields{tmpTestDir}, args{"lockInfo1", lockInfo1Bytes}, false},
-		{"case3", fields{tmpTestDir}, args{"lockInfo2", lockInfo1Bytes}, true},
+		{"case1", fields{tmpTestDir}, args{"unlock_no_exists", lockInfo1Bytes}, false, []string{"unlock_no_exists.lock is deleted so notting to do."}},
+		{"case2", fields{tmpTestDir}, args{"lockInfo1", lockInfo1Bytes}, false, nil},
+		{"case3", fields{tmpTestDir}, args{"lockInfo2", lockInfo1Bytes}, true, []string{"state is locked with diffrend id myid2, but follow id requestd lock myid1"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			b := &Backend{
 				dir: tt.fields.dir,
 			}
-			if err := b.unlock(tt.args.tfID, tt.args.lock); (err != nil) != tt.wantErr {
-				t.Errorf("unlock() error = %v, wantErr %v", err, tt.wantErr)
+			err := b.unlock(tt.args.tfID, tt.args.lock)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.Nil(t, err)
 			}
+			checkLogMessage(t, tt.wantLogs, hooks)
 		})
 	}
 }
@@ -266,13 +288,14 @@ func TestBackend_update(t *testing.T) {
 			b := &Backend{
 				dir: tt.fields.dir,
 			}
-			if err := b.update(tt.args.tfID, tt.args.tfstate); (err != nil) != tt.wantErr {
-				t.Errorf("update() error = %v, wantErr %v", err, tt.wantErr)
+			err := b.update(tt.args.tfID, tt.args.tfstate)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.Nil(t, err)
 			}
 			fileContent, _ := os.ReadFile(b.getTfstateFilename(tt.args.tfID))
-			if !bytes.Equal(tt.args.tfstate, fileContent) {
-				t.Errorf("update() got %s want %s", string(fileContent), string(tt.args.tfstate))
-			}
+			assert.Equal(t, tt.args.tfstate, fileContent)
 		})
 	}
 }
@@ -293,9 +316,8 @@ func TestConflictError_Error(t *testing.T) {
 			c := &ConflictError{
 				StatusCode: tt.fields.StatusCode,
 			}
-			if got := c.Error(); got != tt.want {
-				t.Errorf("Error() = %v, want %v", got, tt.want)
-			}
+			got := c.Error()
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -316,9 +338,8 @@ func TestFileNotExistsError_Error(t *testing.T) {
 			n := &FileNotExistsError{
 				Info: tt.fields.Info,
 			}
-			if got := n.Error(); got != tt.want {
-				t.Errorf("Error() = %v, want %v", got, tt.want)
-			}
+			got := n.Error()
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
