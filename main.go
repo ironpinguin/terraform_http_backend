@@ -6,10 +6,9 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/sirupsen/logrus"
 )
 
 var storageBackend Backend
@@ -23,10 +22,18 @@ func getTfstate(w http.ResponseWriter, r *http.Request) {
 	tfID := chi.URLParam(r, "id")
 	if body, err = storageBackend.get(tfID); err != nil {
 		if errors.As(err, &e) {
-			w.WriteHeader(http.StatusNotFound)
-			_, _ = w.Write([]byte(http.StatusText(http.StatusNotFound)))
+			var operation = err.(*fs.PathError).Op
+			if operation == "stat" {
+				w.WriteHeader(http.StatusNotFound)
+				_, _ = w.Write([]byte(http.StatusText(http.StatusNotFound)))
+			} else {
+				logger.Warnf("Can not Access File: %v", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				_, _ = w.Write([]byte(http.StatusText(http.StatusInternalServerError)))
+			}
 			return
 		}
+		logger.Warnf("Complete unexpected Error: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte(http.StatusText(http.StatusInternalServerError)))
 		return
@@ -96,7 +103,7 @@ func unlockTfstate(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleRequests() {
-	log.Debugf("current storage path: %s", config.storageDirectory)
+	logger.Debugf("current storage path: %s", config.storageDirectory)
 	storageBackend = Backend{dir: config.storageDirectory}
 
 	r := chi.NewRouter()
@@ -115,10 +122,14 @@ func handleRequests() {
 	r.Delete("/{id}", purgeTfstate)
 	r.MethodFunc("LOCK", "/{id}", lockTfstate)
 	r.MethodFunc("UNLOCK", "/{id}", unlockTfstate)
-	log.Fatal(http.ListenAndServe(":8080", r))
+	logger.Fatal(http.ListenAndServe(":8080", r))
+}
+
+func init() {
+	SetLogger(logrus.New())
+	config.loadConfig(".env")
 }
 
 func main() {
-	config.loadConfig(".env")
 	handleRequests()
 }

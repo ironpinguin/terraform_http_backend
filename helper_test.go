@@ -7,6 +7,9 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+
+	"github.com/sirupsen/logrus/hooks/test"
+	"github.com/stretchr/testify/assert"
 )
 
 func createDirectory() (string, func()) {
@@ -44,4 +47,24 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string, body io
 	}(resp.Body)
 
 	return resp, string(respBody)
+}
+
+func checkLogMessage(t *testing.T, wantLogs []string, hooks *test.Hook) {
+	if wantLogs != nil {
+		entries := hooks.AllEntries()
+		for _, logMessage := range wantLogs {
+			found := false
+			var position int
+			for id, entry := range entries {
+				if !found {
+					if logMessage == entry.Message {
+						found = true
+						position = id
+					}
+				}
+			}
+			assert.Contains(t, entries[position].Message, logMessage)
+		}
+	}
+	hooks.Reset()
 }
