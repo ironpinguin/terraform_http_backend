@@ -19,6 +19,8 @@ jobs:
         uses: golangci/golangci-lint-action@v2
       - name: static code analyse
         run: go vet ./...
+  
+  
   test:
     needs: lint
     strategy:
@@ -36,6 +38,39 @@ jobs:
         uses: actions/checkout@v2
       - name: Run tests
         run: go test -v -covermode=count ./...
+  
+
+  docker-build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      - name: Login to DockerHub
+        uses: docker/login-action@v1 
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push
+        if: ${{ 'ref/head/main' == github.ref }}
+        id: docker_build_push
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          tags: "ironpinguin/terraform_http_backend:${{ github.sha }}"
+      - name: only Build
+        if: ${{ 'ref/head/main' != github.ref }}
+        id: docker_build_only
+        uses: docker/build-push-action@v2
+        with:
+          push: false
+          tags: "ironpinguin/terraform_http_backend:${{ github.sha }}"
+
+
   coverage:
     needs: test
     runs-on: ubuntu-latest
