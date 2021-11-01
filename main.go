@@ -122,7 +122,7 @@ func handleRequests() {
 	r.Delete("/{id}", purgeTfstate)
 	r.MethodFunc("LOCK", "/{id}", lockTfstate)
 	r.MethodFunc("UNLOCK", "/{id}", unlockTfstate)
-	logger.Fatal(http.ListenAndServe(":8080", r))
+	logger.Fatal(http.ListenAndServe(config.getAddr(), r))
 }
 
 func init() {
