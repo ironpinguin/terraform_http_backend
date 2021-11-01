@@ -56,14 +56,14 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Build and push
-        if: ${{ 'ref/head/main' == github.ref }}
+        if: ${{ 'refs/heads/main' == github.ref }}
         id: docker_build_push
         uses: docker/build-push-action@v2
         with:
           push: true
           tags: "ironpinguin/terraform_http_backend:${{ github.sha }}"
       - name: only Build
-        if: ${{ 'ref/head/main' != github.ref }}
+        if: ${{ 'refs/heads/main' != github.ref }}
         id: docker_build_only
         uses: docker/build-push-action@v2
         with:
