@@ -29,12 +29,12 @@ func (c *Config) loadConfig(envfile string) {
 	viper.SetDefault("tf_ip", "127.0.0.1")
 
 	if err := viper.ReadInConfig(); err != nil {
-		logger.Infof("Error while reading config file %s", err)
+		logger.Debugf("Error while reading config file %s", err)
 	}
 
 	viper.SetConfigFile(envfile)
 	if err := viper.MergeInConfig(); err != nil {
-		logger.Warnf("Error while reading config file %s", err)
+		logger.Debugf("Error while reading config file %s", err)
 	}
 
 	c.storageDirectory = viper.GetString("tf_storage_dir")
