@@ -1,4 +1,4 @@
-module github.com/ironpinguin/terraform_backend_rest
+module github.com/ironpinguin/terraform_http_backend
 
 go 1.17
 

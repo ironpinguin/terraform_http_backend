@@ -1,8 +1,6 @@
 package main
 
 import (
-	"log"
-
 	"github.com/spf13/viper"
 )
 
@@ -15,23 +13,28 @@ type Config struct {
 }
 
 func (c *Config) loadConfig(envfile string) {
-	viper.SetConfigFile(".env")
-	viper.SetEnvPrefix("tfhttp")
+	viper.SetConfigFile(".env.dist")
+	viper.SetConfigType("env")
 	viper.AutomaticEnv()
 
-	viper.SetDefault("storage_dir", "./store")
-	viper.SetDefault("auth_enabled", false)
-	viper.SetDefault("username", "")
-	viper.SetDefault("password", "")
+	viper.SetDefault("tf_storage_dir", "./store")
+	viper.SetDefault("tf_auth_enabled", false)
+	viper.SetDefault("tf_username", "")
+	viper.SetDefault("tf_password", "")
 
-	err := viper.ReadInConfig()
-	if err != nil {
-		log.Fatalf("Error while reading config file %s", err)
+	if err := viper.ReadInConfig(); err != nil {
+		logger.Infof("Error while reading config file %s", err)
 	}
-	c.storageDirectory = viper.GetString("storage_dir")
-	c.authEnabled = viper.GetBool("auth_enabled")
-	c.username = viper.GetString("username")
-	c.password = viper.GetString("password")
+
+	viper.SetConfigFile(envfile)
+	if err := viper.MergeInConfig(); err != nil {
+		logger.Warnf("Error while reading config file %s", err)
+	}
+
+	c.storageDirectory = viper.GetString("tf_storage_dir")
+	c.authEnabled = viper.GetBool("tf_auth_enabled")
+	c.username = viper.GetString("tf_username")
+	c.password = viper.GetString("tf_password")
 }
 
 func (c *Config) getAuthMap() map[string]string {
