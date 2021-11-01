@@ -47,9 +47,12 @@ jobs:
       - name: Get the version
         id: get_version
         run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3)
+      - name: define short sha
+        id: short_sha
+        run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
       - name: Build and push
         id: docker_build_push
         uses: docker/build-push-action@v2
         with:
           push: true
-          tags: "ironpinguin/terraform_http_backend:${{ github.sha }},ironpinguin/terraform_http_backend:${{ steps.get_version.outputs.VERSION }}"
+          tags: "ironpinguin/terraform_http_backend:${{ steps.short_sha.outputs.sha_short }},ironpinguin/terraform_http_backend:${{ steps.get_version.outputs.VERSION }},ironpinguin/terraform_http_backend:latest"
