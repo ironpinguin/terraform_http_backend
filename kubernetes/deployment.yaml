@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: terraform_backend
+spec:
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: terraform_backend
+  replicas: 1 
+  template: 
+    metadata:
+      labels:
+        app: terraform_backend
+    spec:
+      containers:
+      - name: terraform_backend
+        image: "ironpinguin/terraform_http_backend:v0.1.1"
+        ports:
+        - containerPort: 8080
+        env:
+          - name: 
